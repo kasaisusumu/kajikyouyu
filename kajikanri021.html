@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家事管理アプリ</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+		/* サイトの説明欄のスタイル */
+        .site-description {
+            font-size: 1.2em;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+        body {
+            font-family: 'Comic Sans MS', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            margin-top: 20px;
+            border-radius: 10px;
+            background-color: #f0f8ff;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .btn {
+            border-radius: 50px;
+        }
+        .btn-secondary {
+            background-color: #ff9f9f;
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background-color: #ff6666;
+        }
+        .btn-primary {
+            background-color: #ff6fb5;
+            border-color: #ff6fb5;
+        }
+        .btn-info {
+            background-color: #86c1f7;
+            color: #fff;
+        }
+        .btn-info:hover {
+            background-color: #4da6d4;
+        }
+        .graph-container {
+            margin-top: 30px;
+            padding: 10px;
+            border-radius: 10px;
+            background-color: #e0f7fa;
+        }
+        .copy-url-btn {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .week-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .form-select, .form-control {
+            border-radius: 10px;
+        }
+        h1, h5 {
+            font-weight: bold;
+        }
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+        .active-page {
+            display: block;
+        }
+        .week-navigation button {
+            border-radius: 25px;
+            background-color: #ff9f9f;
+            color: white;
+        }
+        .week-navigation button:hover {
+            background-color: #ff6666;
+        }
+        /* ふわっとしたページ遷移アニメーション */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+		 /* h1タグをセンターに */
+        header {
+            text-align: center;
+        }
+		.hamburger {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 30px;
+      height: 25px;
+      cursor: pointer;
+    }
+    .hamburger div {
+      height: 5px;
+      background-color: #000;
+      border-radius: 5px;
+    }
+    .menu {
+      display: none;
+      position: absolute;
+      top: 50px;
+      left: 0;
+      background-color: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      width: 200px;
+      z-index: 1;
+    }
+    .menu.active {
+      display: block;
+    }
+    .menu a {
+      display: block;
+      padding: 10px;
+      text-decoration: none;
+      color: #000;
+    }
+    .menu a:hover {
+      background-color: #28a745;
+      color: white;
+    }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <header>
+        <h1>家事分担管理君</h1>
+        <!-- サイトの説明欄 -->
+        <div class="site-description">
+            <p>このサイトでは、誰がどのくらい疲れる家事をやってあげたか共有，一週間ごとにグラフで比較することができます．</p>
+        </div>
+    </header>
+    <!-- ページ切り替えボタン -->
+    <div class="text-center mb-4">
+        <button class="btn btn-secondary" onclick="showPage('taskPage')">家事入力ページ</button>
+        <button class="btn btn-secondary" onclick="showPage('personPage')">実行者管理ページ</button>
+    </div>
+
+    <!-- URLコピー＆共有ボタン -->
+    <div class="copy-url-btn">
+        <button class="btn btn-info" onclick="copyURL()">このURLをコピーして共有</button>
+    </div>
+
+    <!-- 家事入力ページ -->
+    <div class="page active-page" id="taskPage">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">家事入力</h5>
+                <form id="taskForm">
+                    <div class="mb-3">
+                        <label for="taskName" class="form-label">家事名</label>
+                        <input type="text" class="form-control" id="taskName" placeholder="例：洗濯"required list="taskSuggestions">
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskPoints" class="form-label">体力消費ポイント</label>
+                        <select class="form-select" id="taskPoints" required>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskPerson" class="form-label">実行者：実行者管理ページより名前を登録してください</label>
+                        <select class="form-select" id="taskPerson" placeholder="実行者管理ページより名前を登録してください"required>
+                            <!-- 担当者リストは動的に追加されます -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskDate" class="form-label">日付</label>
+                        <input type="date" class="form-control" id="taskDate" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">追加</button>
+                </form>
+            </div>
+        </div>
+
+
+	<!-- 週の切り替えボタン -->
+        <div class="week-navigation">
+            <button class="btn btn-secondary" onclick="changeWeek(-1)">前の週</button>
+            <button class="btn btn-secondary" onclick="changeWeek(1)">次の週</button>
+        </div>
+
+        <!-- グラフ表示 -->
+        <div class="graph-container">
+            <h5 class="text-center">家事の体力消費グラフ</h5>
+            <canvas id="taskChart"></canvas>
+        </div>
+        <!-- 家事履歴 -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">家事履歴</h5>
+                <table class="table" id="taskHistory">
+                    <thead>
+                        <tr>
+                            <th>実行者</th>
+                            <th>家事名</th>
+                            <th>体力ポイント</th>
+                            <th>日付</th>
+                            <th>削除</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <!-- 担当者管理ページ -->
+    <div class="page" id="personPage">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">実行者追加</h5>
+                <form id="personForm">
+                    <div class="mb-3">
+                        <label for="newPerson" class="form-label">新しい実行者名</label>
+                        <input type="text" class="form-control" id="newPerson" placeholder="新しい実行者名を入力"required>
+                    </div>
+                    <button type="submit" class="btn btn-success">実行者追加</button>
+                </form>
+                <h5 class="mt-4">実行者削除</h5>
+                <form id="deletePersonForm">
+                    <div class="mb-3">
+                        <label for="personToDelete" class="form-label">削除する実行者</label>
+                        <select class="form-select" id="personToDelete" placeholder="削除する実行者を入力"required>
+                            <!-- 担当者リストは動的に追加されます -->
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-danger">実行者削除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+ <!-- ハンバーガーメニュー -->
+  <div class="hamburger" onclick="toggleMenu()">
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+
+  <!-- メニュー -->
+  <div class="menu" id="menu">
+  <a href="#" onclick="showContactForm(); toggleMenu();">お問い合わせフォーム</a>
+  <a href="#" onclick="showPrivacyPolicy(); toggleMenu();">プライバシーポリシー</a>
+  <a href="#" onclick="showAboutMe(); toggleMenu();">About Me</a> <!-- ← これも追加しておきます -->
+</div>
+
+
+
+  <div id="contact-form" class="contact-form" style="display:none;">
+    <h2>お問い合わせフォーム</h2>
+    <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+      <input type="hidden" name="bot-field" />
+      <input type="hidden" name="form-name" value="contact" />
+      <p>
+          <label>Name <input type="text" name="name" placeholder="お名前を入力してください" /></label>
+      </p>
+      <p>
+          <label>Email <input type="email" name="email" placeholder="アドレスを入力してください" /></label>
+      </p>
+      <p>
+          <label>Content</label>
+          <textarea name="content" rows="4" cols="50" placeholder="お問い合わせ内容を入力してください..."></textarea>
+      </p>
+      <p>
+          <button type="submit">Send</button>
+      </p>
+    </form>
+  </div>
+
+  <div id="privacy-policy" class="privacy-policy" style="display:none;">
+    <h2>プライバシーポリシー</h2>
+    <p>
+      このアプリでは、入力された起床時間のデータは、ユーザーのブラウザのローカルストレージに保存されます。<br />
+      データは開発者や第三者に送信されることはありません。<br />
+      お問い合わせフォームから送信された情報は、Netlifyのフォーム機能を通じてのみ使用されます。
+    </p>
+  </div>
+  
+  <div id="about-me" class="about-me" style="display:none;">
+  <h2>About Me</h2>
+  <p>
+    このアプリは、毎日の起床時間を記録・可視化することで、規則正しい生活習慣をサポートする目的で作成されました。<br />
+    作者は理系大学院生で、自身の生活改善のためにこのツールを開発しました。<br />
+    ご意見・ご感想などございましたら、お気軽にお問い合わせフォームよりご連絡ください。
+  </p>
+</div>
+
+
+  <footer>
+    <hr />
+    <p>
+      ご不明な点がある場合は、お問い合わせフォームよりご連絡ください。
+    </p>
+  </footer>
+
+<script>
+function toggleMenu() {
+      const menu = document.getElementById('menu');
+      menu.classList.toggle('active');
+    }
+
+    function showContactForm() {
+  document.getElementById('contact-form').style.display = 'block';
+  document.getElementById('privacy-policy').style.display = 'none';
+  document.getElementById('about-me').style.display = 'none';
+  document.getElementById('contact-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showPrivacyPolicy() {
+  document.getElementById('privacy-policy').style.display = 'block';
+  document.getElementById('contact-form').style.display = 'none';
+  document.getElementById('about-me').style.display = 'none';
+  document.getElementById('privacy-policy').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showAboutMe() {
+  document.getElementById('about-me').style.display = 'block';
+  document.getElementById('contact-form').style.display = 'none';
+  document.getElementById('privacy-policy').style.display = 'none';
+  document.getElementById('about-me').scrollIntoView({ behavior: 'smooth' });
+}
+function getMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 日曜(0)～土曜(6)
+  const diff = (day + 6) % 7; // 月曜始まりに変換
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+document.getElementById('personForm').addEventListener('submit', function (e) {
+    e.preventDefault(); // フォームの自動送信を止める
+    const newPerson = document.getElementById('newPerson').value.trim();
+
+    if (!newPerson) {
+        alert('名前を入力してください');
+        return;
+    }
+
+    if (personList.includes(newPerson)) {
+        alert('すでに存在する実行者です');
+        return;
+    }
+
+    // 実行者リストに追加して保存
+    personList.push(newPerson);
+    localStorage.setItem(`${userKey}_personList`, JSON.stringify(personList));
+
+    // セレクトボックスに新しい実行者を追加
+    const option1 = document.createElement('option');
+    option1.value = newPerson;
+    option1.textContent = newPerson;
+    document.getElementById('taskPerson').appendChild(option1);
+
+    const option2 = document.createElement('option');
+    option2.value = newPerson;
+    option2.textContent = newPerson;
+    document.getElementById('personToDelete').appendChild(option2);
+
+    // 入力欄をクリア
+    document.getElementById('newPerson').value = '';
+
+    alert(`「${newPerson}」を実行者に追加しました`);
+});
+// 日本時間を取得する関数
+function getJapanTime() {
+    const now = new Date();
+    // 日本のタイムゾーン（UTC+9）に変換
+    const japanTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+    return japanTime;
+}
+
+// ページ読み込み時に実行
+document.addEventListener('DOMContentLoaded', function() {
+    // 今日の日付を日本時間で設定
+    const japanTime = getJapanTime();
+    const todayStr = japanTime.toISOString().split('T')[0]; // YYYY-MM-DD形式
+    document.getElementById('taskDate').value = todayStr;
+
+    // 前回選択した担当者を取得して設定
+    const lastSelectedPerson = localStorage.getItem('lastSelectedPerson');
+    if (lastSelectedPerson) {
+        document.getElementById('taskPerson').value = lastSelectedPerson;
+    }
+});
+
+// 担当者が変更された場合に保存
+document.getElementById('taskPerson').addEventListener('change', function() {
+    const selectedPerson = document.getElementById('taskPerson').value;
+    localStorage.setItem('lastSelectedPerson', selectedPerson);
+});
+
+// ユーザー識別子を取得してページを初期化
+const user = 'defaultUser';  // デフォルトは 'defaultUser'
+const userKey = `taskData_${user}`;
+
+// ユーザーごとのデータ管理
+let personList = JSON.parse(localStorage.getItem(`${userKey}_personList`)) || ['Person A', 'Person B'];
+let taskHistory = JSON.parse(localStorage.getItem(`${userKey}_taskHistory`)) || [];
+
+    // 今日の日付を取得
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];  // 今日の日付をISO形式で取得
+
+    
+    // 日付を「今日」に設定
+    document.getElementById('taskDate').value = todayStr;
+
+    // 初期化
+    const taskPersonSelect = document.getElementById('taskPerson');
+    const personToDeleteSelect = document.getElementById('personToDelete');
+
+    // 担当者を選択肢に追加
+    personList.forEach(person => {
+        const option = document.createElement('option');
+        option.value = person;
+        option.textContent = person;
+        taskPersonSelect.appendChild(option);
+
+        const deleteOption = document.createElement('option');
+        deleteOption.value = person;
+        deleteOption.textContent = person;
+        personToDeleteSelect.appendChild(deleteOption);
+    });
+
+    let taskChart; // グローバルに定義
+
+// 週番号を取得（ISO風のシンプル版）
+function getWeekKey(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const firstDayOfYear = new Date(d.getFullYear(), 0, 1);
+    const pastDays = Math.floor((d - firstDayOfYear) / (24 * 60 * 60 * 1000));
+    const weekNumber = Math.floor((pastDays + firstDayOfYear.getDay()) / 7);
+    return `${d.getFullYear()}-W${weekNumber}`;
+}
+
+// 週ごとにグループ化
+function groupTasksByWeek(tasks) {
+    const weeks = {};
+    tasks.forEach(task => {
+        const weekKey = getWeekKey(task.taskDate);
+        if (!weeks[weekKey]) {
+            weeks[weekKey] = [];
+        }
+        weeks[weekKey].push(task);
+    });
+    return weeks;
+}
+
+// 現在の週をセット
+let currentWeek = getWeekKey(todayStr);
+
+// 週を前後に移動
+function changeWeek(direction) {
+    const current = new Date();
+    const [year, weekStr] = currentWeek.split('-W');
+    const week = parseInt(weekStr) + direction;
+    const newDate = new Date(year, 0, 1 + week * 7);
+    currentWeek = getWeekKey(newDate.toISOString().split('T')[0]);
+    updateTable();
+    updateGraph();
+}
+
+// 現在の週のデータを取得
+function getCurrentWeekData() {
+    const weeks = groupTasksByWeek(taskHistory);
+    return weeks[currentWeek] || [];
+}
+
+// 全担当者取得
+function getAllPersons() {
+    const allPersonsSet = new Set();
+    taskHistory.forEach(task => allPersonsSet.add(task.taskPerson)); // ← 全体の履歴から取得
+    return Array.from(allPersonsSet);
+}
+
+
+// グラフ更新
+function updateGraph() {
+    const tasksForCurrentWeek = getCurrentWeekData();
+
+    // 今週登場している人だけ抽出（重複なし）
+    const allPersons = [...new Set(tasksForCurrentWeek.map(task => task.taskPerson))];
+
+    const personPoints = {};
+    allPersons.forEach(person => {
+        personPoints[person] = 0;
+    });
+
+    tasksForCurrentWeek.forEach(task => {
+        if (personPoints.hasOwnProperty(task.taskPerson)) {
+            personPoints[task.taskPerson] += Number(task.taskPoints);
+        }
+    });
+
+    const ctx = document.getElementById('taskChart').getContext('2d');
+
+    if (taskChart) {
+        taskChart.destroy();
+    }
+
+    taskChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: allPersons,
+            datasets: [{
+                label: '体力消費ポイント（週合計）',
+                data: allPersons.map(person => personPoints[person]),
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'ポイント'
+                    },
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+    // 家事履歴テーブル更新
+    function updateTable() {
+        const tasksForCurrentWeek = getCurrentWeekData();
+        const tbody = document.getElementById('taskHistory').querySelector('tbody');
+        tbody.innerHTML = '';
+
+        tasksForCurrentWeek.forEach(task => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${task.taskPerson}</td>
+                <td>${task.taskName}</td>
+                <td>${task.taskPoints}</td>
+                <td>${task.taskDate}</td>
+                <td><button class="btn btn-danger" onclick="deleteTask(${task.id})">削除</button></td>
+`;
+            tbody.appendChild(row);
+        });
+    }
+
+    function deleteTask(id) {
+    const confirmed = confirm('この家事記録を本当に削除しますか？');
+    if (!confirmed) return;
+
+    taskHistory = taskHistory.filter(task => task.id !== id);
+    localStorage.setItem(`${userKey}_taskHistory`, JSON.stringify(taskHistory));
+    updateTable();
+    updateGraph();
+}
+
+
+
+    // ページ切り替え
+    function showPage(pageId) {
+        const pages = document.querySelectorAll('.page');
+        pages.forEach(page => page.classList.remove('active-page'));
+        document.getElementById(pageId).classList.add('active-page');
+    }
+
+    // 初期データの表示
+    updateTable();
+    updateGraph();
+	// 家事入力フォームの送信処理
+document.getElementById('taskForm').addEventListener('submit', function(event) {
+    event.preventDefault();  // フォーム送信のデフォルト動作を防ぐ
+
+    // フォームデータを取得
+    const taskName = document.getElementById('taskName').value;
+    const taskPoints = document.getElementById('taskPoints').value;
+    const taskPerson = document.getElementById('taskPerson').value;
+    const taskDate = document.getElementById('taskDate').value;
+
+    // 新しい家事データを作成
+    const newTask = {
+		 id: Date.now(), // 一意なID
+        taskName,
+        taskPoints,
+        taskPerson,
+        taskDate
+    };
+
+    // 家事履歴に追加
+    taskHistory.push(newTask);
+
+    // localStorageに保存
+    localStorage.setItem(`${userKey}_taskHistory`, JSON.stringify(taskHistory));
+
+    // フォームをリセット
+    document.getElementById('taskForm').reset();
+
+    // テーブルとグラフを更新
+	// 日付を「今日」に設定
+    document.getElementById('taskDate').value = todayStr;
+	// 前回選択した担当者を取得して設定
+    const lastSelectedPerson = localStorage.getItem('lastSelectedPerson');
+    if (lastSelectedPerson) {
+        document.getElementById('taskPerson').value = lastSelectedPerson;
+    }
+    updateTable();
+    updateGraph();
+});
+// 担当者追加フォームの処理
+// 実行者削除フォームの処理
+document.getElementById('deletePersonForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // 削除する実行者を取得
+    const personToDelete = document.getElementById('personToDelete').value;
+
+	// 確認ダイアログを表示
+    const confirmDelete = confirm(`本当に「${personToDelete}」を削除しますか？`);
+if (!confirm(`「${personToDelete}」を本当に削除しますか？`)) {
+        return;
+    }
+    // 実行者が存在する場合のみ削除
+    if (personToDelete) {
+        // 実行者をpersonListから削除
+        personList = personList.filter(person => person !== personToDelete);
+        localStorage.setItem(`${userKey}_personList`, JSON.stringify(personList));
+
+        // 実行者に関連する家事データも削除
+        taskHistory = taskHistory.filter(task => task.taskPerson !== personToDelete);
+        localStorage.setItem(`${userKey}_taskHistory`, JSON.stringify(taskHistory));
+
+        // ページを更新
+        updateTable();
+        updateGraph();
+		// 前回選択した担当者を取得して設定
+    const lastSelectedPerson = localStorage.getItem('lastSelectedPerson');
+    if (lastSelectedPerson) {
+        document.getElementById('taskPerson').value = lastSelectedPerson;
+    }
+        // 実行者削除後のリストを更新
+        updatePersonList();
+    }
+});
+
+// 実行者リスト更新
+function updatePersonList() {
+    const taskPersonSelect = document.getElementById('taskPerson');
+    const personToDeleteSelect = document.getElementById('personToDelete');
+
+    // 実行者リストをクリア
+    taskPersonSelect.innerHTML = '';
+    personToDeleteSelect.innerHTML = '';
+
+    // 実行者リストを再度表示
+    personList.forEach(person => {
+        const option = document.createElement('option');
+        option.value = person;
+        option.textContent = person;
+        taskPersonSelect.appendChild(option);
+
+        const deleteOption = document.createElement('option');
+        deleteOption.value = person;
+        deleteOption.textContent = person;
+        personToDeleteSelect.appendChild(deleteOption);
+    });
+}
+document.getElementById('taskName').addEventListener('input', function() {
+    const taskName = this.value.trim();
+
+    if (!taskName) return;
+
+    // 同じ家事名の履歴をフィルタ
+    const matchingTasks = taskHistory.filter(task => task.taskName === taskName);
+
+    if (matchingTasks.length > 0) {
+        // 最後に入力されたもののポイントを取得（最新のもの）
+        const latestTask = matchingTasks.sort((a, b) => new Date(b.taskDate) - new Date(a.taskDate))[0];
+        document.getElementById('taskPoints').value = latestTask.taskPoints;
+    }
+});
+// 家事名の候補一覧をdatalistに追加
+function updateTaskSuggestions() {
+    const taskNameSet = new Set(taskHistory.map(task => task.taskName));
+    const datalist = document.getElementById('taskSuggestions');
+    datalist.innerHTML = ''; // 一度リセット
+
+    taskNameSet.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        datalist.appendChild(option);
+    });
+}
+// 履歴を読み込んだ直後
+taskHistory = JSON.parse(localStorage.getItem(`${userKey}_taskHistory`)) || [];
+updateTaskSuggestions();
+
+// 家事が追加された直後
+taskHistory.push(newTask);
+localStorage.setItem(`${userKey}_taskHistory`, JSON.stringify(taskHistory));
+updateTaskSuggestions(); // ←ここ！
+
+
+// ページロード時に実行者リストを更新
+updatePersonSelects();
+
+
+	
+</script>
+
+</body>
+</html>
